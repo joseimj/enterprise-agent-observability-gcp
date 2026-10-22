@@ -1,0 +1,22 @@
+# Submit only after creating Artifact Registry and granting the Cloud Build
+# execution service account artifactregistry.writer on the target repository.
+# Example: gcloud builds submit --config=gcp_edition/cloudbuild.yaml \
+#   --substitutions=_IMAGE=us-central1-docker.pkg.dev/PROJECT/eao-lab-images/eao-gcp-v3:v3.0 .
+# Never automatically promote this image to production; scan/approve first.
+steps:
+  - name: python:3.12-slim
+    entrypoint: bash
+    args:
+      - -ec
+      - |
+        python -m pip install 'pytest>=8,<10' 'fastapi>=0.115,<1'
+        python -m pytest -q tests/test_gcp_edition.py
+        python -m compileall -q gcp_edition
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-f", "gcp_edition/Dockerfile", "-t", "${_IMAGE}", "."]
+  - name: gcr.io/cloud-builders/docker
+    args: ["push", "${_IMAGE}"]
+images:
+  - "${_IMAGE}"
+options:
+  logging: CLOUD_LOGGING_ONLY

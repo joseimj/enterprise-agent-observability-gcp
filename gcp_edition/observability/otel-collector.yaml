@@ -1,0 +1,18 @@
+# Deploy as a separately authenticated collector/sidecar; not created by Terraform.
+# The googlecloud exporter is provided by the OpenTelemetry Collector Contrib build.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+processors:
+  batch: {}
+exporters:
+  googlecloud:
+    project: ${env:GOOGLE_CLOUD_PROJECT}
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [googlecloud]

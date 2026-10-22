@@ -1,0 +1,7 @@
+project_id = "my-gcp-project"
+region = "us-central1"
+environment = "lab"
+api_image = "us-central1-docker.pkg.dev/my-gcp-project/eao-lab-images/eao-gcp-v3@sha256:REPLACE_WITH_REAL_DIGEST"
+inference_provider = "offline" # switch to vertex after credentials/quotas/cost controls verified
+# enable_worker = true
+# simulator_url = "https://my-private-simulator.example"

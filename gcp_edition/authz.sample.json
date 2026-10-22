@@ -1,0 +1,4 @@
+{
+  "signed-google-subject-operator": {"tenant": "acme", "roles": ["Agent.Operator", "Agent.Auditor"]},
+  "signed-google-subject-approver": {"tenant": "acme", "roles": ["Agent.Approver", "Agent.Auditor"]}
+}
