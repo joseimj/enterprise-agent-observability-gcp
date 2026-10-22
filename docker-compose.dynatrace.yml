@@ -1,0 +1,8 @@
+# Opt-in: docker compose -f docker-compose.yml -f docker-compose.dynatrace.yml up --build -d
+services:
+  otel-collector:
+    volumes:
+      - ./observability/collector-dual.yaml:/etc/otelcol/config.yaml:ro
+    environment:
+      DT_OTLP_ENDPOINT: ${DT_OTLP_ENDPOINT:?Set Dynatrace OTLP HTTP endpoint}
+      DT_API_TOKEN: ${DT_API_TOKEN:?Set Dynatrace API token}

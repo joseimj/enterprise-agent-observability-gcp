@@ -1,0 +1,78 @@
+services:
+  api:
+    build: .
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    ports: ["127.0.0.1:8000:8000"]
+    environment:
+      AUDIT_DATABASE_URL: ${AUDIT_DATABASE_URL:-}
+      SALESFORCE_URL: http://salesforce:8001
+      JIRA_URL: http://jira:8002
+      SERVICENOW_URL: http://servicenow:8003
+      INFERENCE_PROVIDER: ${INFERENCE_PROVIDER:-offline}
+      BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:-}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+    depends_on: [salesforce, jira, servicenow, otel-collector]
+  salesforce:
+    build: .
+    command: uvicorn app.mock_salesforce:app --host 0.0.0.0 --port 8001
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+  jira:
+    build: .
+    command: uvicorn app.mock_jira:app --host 0.0.0.0 --port 8002
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+  servicenow:
+    build: .
+    command: uvicorn app.mock_servicenow:app --host 0.0.0.0 --port 8003
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.111.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes: ["./observability/collector.yaml:/etc/otelcol/config.yaml:ro"]
+    depends_on: [tempo, loki]
+    environment:
+      DT_OTLP_ENDPOINT: ${DT_OTLP_ENDPOINT:-https://invalid.example/api/v2/otlp}
+      DT_API_TOKEN: ${DT_API_TOKEN:-not-configured}
+  tempo:
+    image: grafana/tempo:2.6.1
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes: ["./observability/tempo.yaml:/etc/tempo.yaml:ro"]
+  loki:
+    image: grafana/loki:3.2.1
+    command: ["-config.file=/etc/loki/config.yaml"]
+    volumes: ["./observability/loki.yaml:/etc/loki/config.yaml:ro"]
+  prometheus:
+    image: prom/prometheus:v2.55.0
+    command: ["--config.file=/etc/prometheus/prometheus.yml"]
+    volumes: ["./observability/prometheus.yaml:/etc/prometheus/prometheus.yml:ro"]
+    ports: ["127.0.0.1:9090:9090"]
+  grafana:
+    image: grafana/grafana:11.3.0
+    ports: ["127.0.0.1:3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: local-demo-only
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_UNIFIED_ALERTING_ENABLED: "true"
+    volumes: ["./observability/grafana/provisioning:/etc/grafana/provisioning:ro"]
+    depends_on: [tempo, prometheus, loki]
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: agent
+      POSTGRES_PASSWORD: agent-local
+      POSTGRES_DB: agent_audit
+    volumes:
+      - audit_data:/var/lib/postgresql/data
+      - ./governance/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agent -d agent_audit"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+volumes:
+  audit_data:

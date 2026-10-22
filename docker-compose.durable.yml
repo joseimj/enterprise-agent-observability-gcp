@@ -1,0 +1,9 @@
+# Local-only extension. Requires docker compose -f docker-compose.yml -f docker-compose.durable.yml.
+services:
+  api:
+    environment:
+      ENABLE_DURABLE_LAB: "true"
+      CHECKPOINT_DATABASE_URL: postgresql://agent:agent-local@postgres:5432/agent_audit?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy

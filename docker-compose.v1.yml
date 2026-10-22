@@ -1,0 +1,13 @@
+# Local lab only. Entra tokens are always required for /v1; do not expose this stack publicly.
+services:
+  api:
+    environment:
+      CHECKPOINT_DATABASE_URL: postgresql://agent:agent-local@postgres:5432/agent_audit?sslmode=disable
+      ENTRA_TENANT_ID: ${ENTRA_TENANT_ID:-}
+      ENTRA_API_AUDIENCE: ${ENTRA_API_AUDIENCE:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+  postgres:
+    volumes:
+      - ./governance/v1_schema.sql:/docker-entrypoint-initdb.d/002-v1-schema.sql:ro

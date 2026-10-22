@@ -1,0 +1,50 @@
+# Use: docker compose -f docker-compose.yml -f docker-compose.v2.yml -f docker-compose.integration.yml up -d --build
+# Local reliability laboratory only; never expose the local credentials or simulator publicly.
+services:
+  servicenow-simulator:
+    build: .
+    command: uvicorn app.reliability.simulator:app --host 0.0.0.0 --port 8010
+    environment:
+      SIM_DATABASE_URL: postgresql://agent:agent-local@postgres:5432/agent_audit
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://localhost:8010/health', timeout=2)"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+  reliability-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.integration
+    environment:
+      AUDIT_DATABASE_URL: postgresql://agent_runtime_lab:runtime-local-only@postgres:5432/agent_audit
+      CHECKPOINT_DATABASE_URL: postgresql://agent_checkpoint_lab:checkpoint-local-only@postgres:5432/agent_audit?options=-csearch_path%3Dagent_checkpoints
+      ADMIN_DATABASE_URL: postgresql://agent:agent-local@postgres:5432/agent_audit
+      SIMULATOR_URL: http://servicenow-simulator:8010
+      RUN_DATABASE_INTEGRATION: '1'
+      OTEL_SDK_DISABLED: 'true'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      servicenow-simulator:
+        condition: service_healthy
+    command: pytest -q tests/reliability -v
+    profiles: ['integration']
+
+  governed-worker:
+    build: .
+    command: python -m app.reliability.governed_worker
+    profiles: ['integration']
+    environment:
+      AUDIT_DATABASE_URL: postgresql://agent_runtime_lab:runtime-local-only@postgres:5432/agent_audit
+      WORKER_BUSINESS_TENANT_ID: ${WORKER_BUSINESS_TENANT_ID:-lab_tenant}
+      SERVICENOW_PROVIDER_MODE: simulator
+      SIMULATOR_URL: http://servicenow-simulator:8010
+      OTEL_SDK_DISABLED: 'true'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      servicenow-simulator:
+        condition: service_healthy

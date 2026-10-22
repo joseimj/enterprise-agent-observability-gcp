@@ -1,0 +1,18 @@
+# Local development only; database credentials and network settings are NOT production hardened.
+services:
+  api:
+    environment:
+      AUDIT_DATABASE_URL: postgresql://agent_runtime_lab:runtime-local-only@postgres:5432/agent_audit?sslmode=disable
+      CHECKPOINT_DATABASE_URL: postgresql://agent_checkpoint_lab:checkpoint-local-only@postgres:5432/agent_audit?options=-csearch_path%3Dagent_checkpoints
+      ENTRA_TENANT_ID: ${ENTRA_TENANT_ID:-}
+      ENTRA_API_AUDIENCE: ${ENTRA_API_AUDIENCE:-}
+      BUSINESS_TENANT_MEMBERSHIP_JSON: ${BUSINESS_TENANT_MEMBERSHIP_JSON:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+  postgres:
+    volumes:
+      - ./governance/v1_schema.sql:/docker-entrypoint-initdb.d/002-v1-schema.sql:ro
+      - ./governance/v11_schema.sql:/docker-entrypoint-initdb.d/003-v11-schema.sql:ro
+      - ./governance/reliability_roles.sql:/docker-entrypoint-initdb.d/004-reliability-roles.sql:ro
+      - ./governance/005_security_remediation.sql:/docker-entrypoint-initdb.d/005-security-remediation.sql:ro
