@@ -1,0 +1,16 @@
+// Workflow errors (adapt attributes to your Dynatrace Grail schema)
+fetch spans, from: now()-1h
+| filter contains(span.name, "risk.analyze")
+| summarize executions=count(), by:{span.name}
+
+// Slow Jira dependency calls
+fetch spans, from: now()-1h
+| filter contains(span.name, "jira")
+| sort start_time desc
+| limit 100
+
+// Failed workflow logs
+fetch logs, from: now()-1h
+| filter contains(content, "workflow_failure")
+| sort timestamp desc
+| limit 100
